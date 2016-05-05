@@ -9,17 +9,23 @@ int Graph::getDim(){
 }
 
 bool Graph::isVisitato(int id){
-	return visitato[id];
+	std::vector<ElemGraph*> all;
+	all = getAllNodeList();
+	return all[id]->getElementPointer()->getVisitato();
 }
 
 void Graph::setFalseVisitato(){
-	for (size_t i = 0; i < visitato.size(); i++){
-		visitato[i] = false;
+	std::vector<ElemGraph*> all;
+	all = getAllNodeList();
+	for (int i = 0; i < dim; i++){
+		all[i]->getElementPointer()->setVisitato(false);
 	}
 }
 
 void Graph::setVisitato(int id){
-	visitato[id] = true;
+	std::vector<ElemGraph*> all;
+	all = getAllNodeList();
+	all[id]->getElementPointer()->setVisitato(true);
 }
 
 bool Graph::isEmpty(){
@@ -39,6 +45,24 @@ std::vector<Nodo*> Graph::DFS(ElemGraph * eg){
 			for(size_t j=0;j<adj.size();j++){
 				if(node_list[k]->getElemento().name==adj[j] && node_list[k]->getElemento().name!=eg->getElemento().name){
 					adj_node.push_back(node_list[k]->getElementPointer());
+				}
+			}
+		}
+	}
+	
+	return adj_node;
+}
+
+std::vector<ElemGraph*> Graph::getAdjs(ElemGraph *eg){
+	std::vector<Canale*> next=eg->getNext();
+	std::vector<ElemGraph*> adj_node;
+	
+	for(size_t i=0;i<next.size();i++){
+		std::vector<std::string> adj=next[i]->adj;
+		for(size_t k=0;k<node_list.size();k++){
+			for(size_t j=0;j<adj.size();j++){
+				if(node_list[k]->getElemento().name==adj[j] && node_list[k]->getElemento().name!=eg->getElemento().name){
+					adj_node.push_back(node_list[k]);
 				}
 			}
 		}
@@ -194,4 +218,107 @@ double Graph::getCanaleFlowSection(Nodo *a, Nodo *b, int sect){
 	int canale=findCanale(a, b);
 	Canale tmp=sim->canali[canale];
 	return tmp.Qj[sect];
+}
+
+double Graph::getCanaleInclinationSection(Nodo *a, Nodo *b){
+	int canale=findCanale(a, b);
+	Canale tmp=sim->canali[canale];
+	
+	return tmp.alpha;
+}
+
+void Graph::printVisitato(){
+	for(int i=0;i<dim;i++){
+		printf("%d\n",visitato[i]);
+	}
+}
+
+std::string Graph::getCanaleName(Nodo *a, Nodo *b){
+	int canale=findCanale(a, b);
+	Canale tmp=sim->canali[canale];
+	
+	return tmp.name;
+}
+
+std::vector<std::string> Graph::getAllCanaliname(){
+	std::vector<std::string> name;
+	int i;
+	
+	for(i=0;i<node_list.size();i++){
+		name.push_back(node_list[i]->getElementPointer()->name);	
+	}
+	
+	return name;
+}
+
+std::vector<float> Graph::getAvgHeight(){
+	int canale, i, k, j;
+	float tmp_avg=0;
+	std::vector<float> avg;
+	
+	for(k=0;k<node_list.size();k++){
+		for(j=0;j<node_list.size();j++){
+			canale=findCanale(node_list[k]->getElementPointer(), node_list[j]->getElementPointer());
+			if(canale!=-1){
+				Canale tmp=sim->canali[canale];
+				
+				for(i=0;i<tmp.hj.size();i++){
+					tmp_avg+=tmp.hj[i];
+				}
+			
+				avg.push_back(tmp_avg/tmp.hj.size());
+				
+				canale=-1;
+				tmp_avg=0;
+			}
+		}
+	}
+
+	return avg;
+}
+
+std::vector<float> Graph::getAvgPortata(){
+	int canale, i, k, j;
+	float tmp_avg=0;
+	std::vector<float> avg;
+	
+	for(k=0;k<node_list.size();k++){
+		for(j=0;j<node_list.size();j++){
+			canale=findCanale(node_list[k]->getElementPointer(), node_list[j]->getElementPointer());
+			if(canale!=-1){
+				Canale tmp=sim->canali[canale];
+				
+				for(i=0;i<tmp.Qj.size();i++){
+					tmp_avg+=tmp.Qj[i];
+				}
+			
+				avg.push_back(tmp_avg/tmp.Qj.size());
+				
+				canale=-1;
+				tmp_avg=0;
+			}
+		}
+	}
+
+	return avg;
+}
+
+std::vector<float> Graph::getPendenza(){
+	int canale, i, k, j;
+	std::vector<float> pend;
+	
+	for(k=0;k<node_list.size();k++){
+		for(j=0;j<node_list.size();j++){
+			canale=findCanale(node_list[k]->getElementPointer(), node_list[j]->getElementPointer());
+			if(canale!=-1){
+				Canale tmp=sim->canali[canale];
+			
+				pend.push_back(tmp.alpha);
+				
+				canale=-1;
+			}
+		}
+	}
+	
+	return pend;
 }

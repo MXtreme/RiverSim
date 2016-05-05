@@ -1,12 +1,17 @@
 #include "MyGlWindow.h"
 
 //extern auto t_start;	
-
 MyGlWindow::MyGlWindow(int X, int Y, int W, int H, const char *L) : Fl_Gl_Window(X, Y, W, H, L){
 	zoom_factor = 1;
 	main_coord_x = 0.0f;
 	main_coord_y = 0.0f;
 	main_coord_z = 0.0f;
+	swipe_x = 0;
+	swipe_y = 0;
+	swipe_z = 0;
+	view = VIEW_1;
+	mode = MODE_BITMAP;
+   font_index = 0;
 	end();
 }
 
@@ -30,18 +35,87 @@ void MyGlWindow::draw(){
 		gl_font(FL_HELVETICA_BOLD, 16);
 		glClearColor(0, 0.0, 0, 1.0f);
 		tex_pump = loadTexture("water_tower.png", 256, 256);
-		tex_terrain = loadTexture("terrain.png", 512, 512);	
+		tex_terrain = loadTexture("terrain.png", 512, 512);
+		int argc = 0;
+		char *argv[1];
+		glutInit(&argc, NULL);
 	}
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();	
+	glViewport(0, 0, w(), h());
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// clean  buffers
 	glClearColor(0, 0.0f, 0, 1.0f);	// background color
 	glOrtho(-w()*zoom_factor, w()*zoom_factor, -h()*zoom_factor, h()*zoom_factor, -1, 1);
+	glPushMatrix();
 	glTranslatef(main_coord_x, main_coord_y, main_coord_z);
 	drawBackground();	
-	drawPump(0, 0);
-	if(map!=NULL)drawMap();	//disegna il grafo     
+	if(map!=NULL){
+		drawMap();	//disegna il grafo     
+	}else drawPump(0, 0);
+	glPopMatrix();
+	if(map!=NULL && map->getDim()>1)drawOverlay();
    glFlush();
+}
+
+void MyGlWindow::drawOverlay(){
+	glViewport(w()/4,-h(),w(),2*h());
+	
+	glScalef(zoom_factor,zoom_factor,zoom_factor);
+	//main black rectangle
+	glPushMatrix();
+	glColor4f(.0f,.0f,.0f,0.5f);
+	glBegin(GL_POLYGON);
+	glVertex2f(0,0);
+	glVertex2f(0,h());
+	glVertex2f(w()/2,h());
+	glVertex2f(w()/2,0);
+	glEnd();
+	glPopMatrix();
+	
+	//border
+	glPushMatrix();
+	glColor4f(.0f,.0f,.0f,1.0f);
+	glBegin(GL_LINES);
+	glVertex2f(0,0);
+	glVertex2f(0,h());
+	glEnd();
+	glPopMatrix();
+	
+	char *c;
+	/*c = "RiverSim 1.1"; 
+	font_index = 3;
+   glColor4f(1.0, 1.0, 1.0, 1.0);
+	drawString(c,w()/8,h()-20);
+	*/
+	font_index = 0;
+	std::vector<std::string>labels = map->getAllCanaliname();
+	std::vector<float> avg_H = map-> getAvgHeight();
+	std::vector<float> avg_F = map->getAvgPortata();
+	std::vector<float> incl = map->getPendenza();
+	for(int i=0;i<labels.size();i++){
+		//printf("%s\n",labels[i]);
+		char *d = new char[labels[i].length() + 1];
+		strcpy(d, labels[i].c_str());
+		drawString(d,10,(h()-100*i/2)-30 + swipe_y);
+		c = new char[32];
+		sprintf(c, "H:%4.2f", avg_H[i]);
+		drawString(c,10,(h()-(100*i/2)-20)-30 + swipe_y);
+		sprintf(c, "F:%4.2f", avg_F[i]);
+		drawString(c,200,(h()-(100*i/2)-20)-30 + swipe_y);
+		sprintf(c, "I:%4.2f", incl[i]);
+		drawString(c,390,(h()-(100*i/2)-20)-30 + swipe_y);
+		delete [] d;
+		
+		glPushMatrix();
+		glColor4f(1.0f,1.0f,1.0f,1.0f);
+		glBegin(GL_LINES);
+		glVertex2f(0, (h()-(100*i/2)-20)-40 + swipe_y);
+		glVertex2f(w()/2,(h()-(100*i/2)-20)-40 + swipe_y);
+		glEnd();
+		glPopMatrix();
+		glColor4f(1.0, 1.0, 1.0, 1.0);
+	}
+	
 }
 
 void MyGlWindow::drawBackground(){
@@ -128,10 +202,21 @@ int MyGlWindow::handle(int event){
 	case FL_DRAG:
 		dx = Fl::event_x() - click_x;
 		dy = Fl::event_y() - click_y;
+		if(map!=NULL && map->getDim()>1){
+			if((click_x >= w()/1.33) && (click_x <= w())){
+				if((click_y >= 0) && (click_y <= h())){
+					swipe_y -= dy;
+					if(swipe_y>50)swipe_y = 50;
+				}
+			}else{
+				main_coord_x += dx;
+				main_coord_y -= dy;
+			}
+		}
 		click_x = Fl::event_x();
 		click_y = Fl::event_y();
-		main_coord_x += dx;
-		main_coord_y -= dy;
+		
+		
 		redraw();
 		return 1;
 	case FL_MOUSEWHEEL:	// zoom commands
@@ -275,44 +360,24 @@ GLuint MyGlWindow::loadTexture(std::string filename, int width, int height){
 Function for drawing a line using points
 */
 void MyGlWindow::drawLine(float x1, float y1, float x2, float y2, int samples, Nodo *a, Nodo *b){
-	//std::cout << "Canale " << x1 << " " << y1 << " " << x2 << " " << y2 << std::endl;
-	float dx = - (x1 - x2) / (float)samples;
-	float dy = - (y1 - y2) / (float)samples;
-	
-	//bool draw_h = false;
-	//double prop = (samples*hpos)/100;
-	float x;
-	double hmax, hpos;
-	//map->getCanaleHeightPosition(a,b);
+	float dx, dy, x;
+	double hmax, hpos, r, max_r, min_r, c, max_c, min_c;
+	dx = - (x1 - x2) / (float)samples;
+	dy = - (y1 - y2) / (float)samples;
+	c = 0;
 
 	for (int i = 0; i < samples; i++){
-		/*if(!draw_h && i >= prop){
-			draw_h = true;
-			glColor3f(1, 1, 1);
-			drawFilledCircle(x1+i*dx, y1+i*dy, 5);
-			glColor3f(0, 0.5f, 0.8f);
-		}else{
-			glPushMatrix();
-			glBegin(GL_POINTS);
-			glVertex2f(x1+i*dx, y1+i*dy);
-			glEnd();
-			glPopMatrix();
-		}*/
-		//printf("%s %s\n",a->name.c_str(), b->name.c_str());
-		//color = 1/(map->getCanaleHeight(a,b)*hpos);
-		//printf("color %f %f %f %d\n",color, hpos, map->getCanaleHeight(a,b), i);
-		/*glPushMatrix();
-		glBegin(GL_POINTS);
-		glVertex2f(x1+i*dx, y1+i*dy);
-		glEnd();
-		glPopMatrix();*/
 
-		double r = std::abs(map->getCanaleFlowSection(a, b, i));
-		double max_r = 2; //map->getMaxFlow();
-		double min_r = 0;
-		double c = map->getCanaleHeightSection(a, b, i);
-		double max_c = 2; //map->getMaxHeight();
-		double min_c = 1;
+		r = std::abs(map->getCanaleFlowSection(a, b, i));
+		max_r = 2;
+		min_r = 0;
+		if(view == VIEW_1)
+			c = map->getCanaleHeightSection(a, b, i);
+		else if(view == VIEW_2){
+			c = map->getCanaleInclinationSection(a,b);
+		}
+		max_c = 2;
+		min_c = 1;
 
 
 		x = (float) ( ( c - min_c ) / ( max_c - min_c) );
@@ -323,13 +388,6 @@ void MyGlWindow::drawLine(float x1, float y1, float x2, float y2, int samples, N
 		x *= 10;
 		x += 2;
 		drawFilledCircle(x1+i*dx, y1+i*dy, x);
-//		glLineWidth(x);
-//		glPushMatrix();
-//		glBegin(GL_LINES);
-//		glVertex2f(x1+(i-1)*dx, y1+(i-1)*dy);
-//		glVertex2f(x1+i*dx, y1+i*dy);
-//		glEnd();
-//		glPopMatrix();
 	}
 }
 
@@ -357,31 +415,142 @@ void MyGlWindow::drawFilledCircle(float x1, float y1, double radius){
 Function to draw the graph
 */
 void MyGlWindow::drawMap(){
-	std::vector<Nodo*> next_node;
-	std::vector<ElemGraph*> all=map->getAllNodeList();
+	if(map->getDim()>0){
+		std::vector<Nodo*> next_node;
+		std::vector<ElemGraph*> all;
+		map->setFalseVisitato();
+		all = map->getAllNodeList();
+		drawDFS(all[0], all[0]);
+	}
+}
 
-	for(size_t i=0;i<all.size();i++)
-		all[i]->getElementPointer()->setVisitato(false);
-
-	for(size_t i=0;i<all.size();i++){
-		//if(all[i]->getElemento().getVisitato() == false){
-			all[i]->getElementPointer()->setVisitato(true);
-			drawPump(all[i]->getElemento().x_pos, all[i]->getElemento().y_pos);
-			next_node=map->DFS(all[i]);
-			for(size_t k=0;k<next_node.size();k++){
-				if(next_node[k]->getVisitato() == false){
-					next_node[k]->setVisitato(true);		
-					//glColor3f(0, 0.5f, 0.8f);
-					int n_sect = map->getNSections(all[i]->getElementPointer(),next_node[k]);
-					drawLine(all[i]->getElemento().x_pos, all[i]->getElemento().y_pos, next_node[k]->x_pos, next_node[k]->y_pos, n_sect, all[i]->getElementPointer(), next_node[k]);
-					drawPump(next_node[k]->x_pos, next_node[k]->y_pos);
-				}
-			}
+void MyGlWindow::drawDFS(ElemGraph *prec, ElemGraph *pres){
+	if(map->isVisitato(pres->getId()) == false){
+		std::vector<ElemGraph*> adj;
+		adj = map->getAdjs(pres);
+		map->setVisitato(pres->getId());		
+		drawPump(pres->getElementPointer()->x_pos, pres->getElementPointer()->y_pos);
+		for(int i=0; i<adj.size(); i++){
+			drawDFS(pres, adj[i]);
 		}
-	//}
+	}else{
+	int n_sect = map->getNSections(prec->getElementPointer(),pres->getElementPointer());
+	drawLine(pres->getElementPointer()->x_pos, pres->getElementPointer()->y_pos, prec->getElementPointer()->x_pos, prec->getElementPointer()->y_pos, n_sect, pres->getElementPointer(), prec->getElementPointer());
+	std::string str = map->getCanaleName(pres->getElementPointer(), prec->getElementPointer());
+	char *c = new char[str.length() + 1];
+	strcpy(c, str.c_str());
+	float x1,x2,y1,y2;
+	x1 = pres->getElementPointer()->x_pos;
+	x2 = prec->getElementPointer()->x_pos;
+	y1 = pres->getElementPointer()->y_pos;
+	y2 = prec->getElementPointer()->y_pos;
+	font_index = 0;
+   glColor4f(1.0, 0.0, 0.0, 1.0);
+	drawString(c, ((x1+x2)/2), ((y1+y2)/2));
+	delete [] c;
+	}
 }
 
 void MyGlWindow::setMap(Graph *g){
 	map = g;
 	std::cout << "map referenced" << std::endl;
+}
+
+void MyGlWindow::drawString(char *string, float x, float y){
+   unsigned int i, j;
+   unsigned int count;
+   void* bitmap_fonts[7] = {
+      GLUT_BITMAP_9_BY_15,
+      GLUT_BITMAP_8_BY_13,
+      GLUT_BITMAP_TIMES_ROMAN_10,
+      GLUT_BITMAP_TIMES_ROMAN_24,
+      GLUT_BITMAP_HELVETICA_10,
+      GLUT_BITMAP_HELVETICA_12,
+      GLUT_BITMAP_HELVETICA_18     
+   };
+
+   char* bitmap_font_names[7] = {
+      "GLUT_BITMAP_9_BY_15",
+      "GLUT_BITMAP_8_BY_13",
+      "GLUT_BITMAP_TIMES_ROMAN_10",
+      "GLUT_BITMAP_TIMES_ROMAN_24",
+      "GLUT_BITMAP_HELVETICA_10",
+      "GLUT_BITMAP_HELVETICA_12",
+      "GLUT_BITMAP_HELVETICA_18"     
+   };
+
+   void* stroke_fonts[2] = {
+      GLUT_STROKE_ROMAN,
+      GLUT_STROKE_MONO_ROMAN
+   };
+
+   char* stroke_font_names[2] = {
+      "GLUT_STROKE_ROMAN",
+      "GLUT_STROKE_MONO_ROMAN"
+   };
+
+   GLfloat ystep, yild, stroke_scale;
+
+   /* Draw the strings, according to the current mode and font. */
+   //ystep  = 100.0;
+   //yild   = 20.0;
+   if (mode == MODE_BITMAP) {
+      //glRasterPos2f(x, y);
+      /*print_bitmap_string(
+         bitmap_fonts[font_index], bitmap_font_names[font_index]);/*/
+      /*for (j=0; j<1; j++) {
+         //glRasterPos2f(x, y);
+         print_bitmap_string(bitmap_fonts[font_index], string[j]);
+      }*/
+			//glMatrixMode(GL_PROJECTION);
+			//glLoadIdentity();
+			glPushMatrix();
+			//printf("median x=%f y=%f w=%d h%d\n",x,y,w(),h());
+			
+			//printf("rasterized %f %f\n",x+(main_coord_x/2), y+main_coord_y/2);
+			//glTranslatef(main_coord_x,main_coord_y,0);
+			glRasterPos2f(x, y);
+			//glRasterPos2f(0,0);
+         print_bitmap_string(bitmap_fonts[font_index], string);
+         glPopMatrix();
+   }
+   else {/*
+      stroke_scale = 0.1f;
+      glMatrixMode(GL_MODELVIEW);
+      glPushMatrix(); {
+         glTranslatef(x, y+1.25*yild, 0.0);
+         glScalef(stroke_scale, stroke_scale, stroke_scale);
+         print_stroke_string(
+            stroke_fonts[font_index], stroke_font_names[font_index]);
+      } glPopMatrix();
+      glPushMatrix(); {
+         glTranslatef(x, y, 0.0);
+         for (j=0; j<1; j++) {
+            glPushMatrix(); {
+               glScalef(stroke_scale, stroke_scale, stroke_scale);
+               print_stroke_string(stroke_fonts[font_index], string[j]);
+            } glPopMatrix();
+            glTranslatef(0.0, -yild, 0.0);
+         }
+         glTranslatef(0.0, -ystep, 0.0);
+      } glPopMatrix();*/
+   }
+}
+
+void MyGlWindow::print_bitmap_string(void* font, char* s){
+   if (s && strlen(s)) {
+      while (*s) {
+         glutBitmapCharacter(font, *s);
+         s++;
+      }
+   }
+}
+
+void MyGlWindow::print_stroke_string(void* font, char* s){
+   if (s && strlen(s)) {
+      while (*s) {
+         glutStrokeCharacter(font, *s);
+         s++;
+      }
+   }
 }

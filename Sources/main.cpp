@@ -17,7 +17,7 @@ int main(int argc, char* argv[]){
 	gen = new Generatore(&p);
 	sim = new Simulazione();
 
-	WindowManager win(800, 600, "RiverSim");
+	WindowManager win(1024, 600, "RiverSim");
 	win.show(argc, argv);
     
 	return (Fl::run());

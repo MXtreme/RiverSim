@@ -10,10 +10,10 @@ extern Simulazione *sim;
 class Graph{
 protected:
 	int dim;
-	std::vector<bool> visitato;
 	std::vector<ElemGraph*> node_list;
 
 public:
+	std::vector<int> visitato;
 	Graph();
 	int getDim(); //ritorna la dimensione del grafo
 	bool isVisitato(int); //ti dice se un nodo � stato visitato o meno
@@ -46,6 +46,22 @@ public:
 	double getMaxFlow();
 
 	double getCanaleFlowSection(Nodo *a, Nodo *b, int sect);
+	
+	double getCanaleInclinationSection(Nodo *a, Nodo *b);
+
+	std::vector<ElemGraph*> getAdjs(ElemGraph *eg);
+
+	void printVisitato();
+	
+	std::string getCanaleName(Nodo *a, Nodo *b);
+	
+	std::vector<std::string> getAllCanaliname();
+	
+	std::vector<float> getAvgHeight();
+	
+	std::vector<float> getAvgPortata();
+	
+	std::vector<float> getPendenza();
 };
 
 #endif

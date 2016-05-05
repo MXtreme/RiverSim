@@ -21,7 +21,7 @@ class WindowManager : public Fl_Window{
 	static void Timer_CB(void *userdata) {
         MyGlWindow *pb = (MyGlWindow*)userdata;
         pb->redraw();
-        Fl::repeat_timeout(1.0/60, Timer_CB, userdata);
+        Fl::repeat_timeout(1.0/1, Timer_CB, userdata);
     }
 
 	private:

@@ -34,7 +34,7 @@ WindowManager::WindowManager(int W, int H, const char *L)
 	// Window building
 	menu_bar = new Fl_Menu_Bar(0, 0, W, 30);
 	menu_bar->copy(menu_items);
-	Fl::add_timeout(1.0/60.0, Timer_CB, (void*)window);
+	Fl::add_timeout(1.0/1.0, Timer_CB, (void*)window);
 	//window->redraw();
 	end();
 	//idle();
