@@ -1,8 +1,8 @@
 CC  = $(shell fltk-config --cc)
 CXX = $(shell fltk-config --cxx)
 
-CFLAGS   = $(shell fltk-config --cflags) -Wall -O3 -I/usr/local/include -L/usr/local -lpng12 -lcminpack -lz -lm -lGL -lglu -lpthread -std=c++11
-CXXFLAGS = $(shell fltk-config --cxxflags) -Wall -O3 -I/usr/local/include -L/usr/local -lpng12 -lcminpack -lz -lm -lGL -lglut -lpthread -std=c++11
+CFLAGS   = $(shell fltk-config --cflags) -Wall -O3 -I/usr/local/include -L/usr/local -lpng12 -lcminpack -lz -lm -lGLEW -lglut -lGLU -lGL -lX11 -lpthread -std=c++11
+CXXFLAGS = $(shell fltk-config --cxxflags) -Wall -O3 -I/usr/local/include -L/usr/local -lpng12 -lcminpack -lz -lm -lGLEW -lglut -lGLU -lGL -lX11 -lpthread -std=c++11
 
 LINKFLTK = $(shell fltk-config --ldstaticflags)
 LINKFLTK_GL = $(shell fltk-config --use-gl --ldstaticflags)
@@ -14,7 +14,7 @@ POSTBUILD = fltk-config --post #required on OSX
 all: riversim
 
 riversim: main.o ElemGraph.o MyGlWindow.o Elemento.o Nodo.o Canale.o stdafx.o WindowManager.o ProvaParser.o Generatore.o Graph.o Simulazione.o
-	$(CXX) -o $@ main.o ElemGraph.o MyGlWindow.o Elemento.o Nodo.o Canale.o stdafx.o WindowManager.o ProvaParser.o Generatore.o Graph.o Simulazione.o $(LINKFLTK_GL) -lpng12 -lcminpack -lz
+	$(CXX) -o $@ main.o ElemGraph.o MyGlWindow.o Elemento.o Nodo.o Canale.o stdafx.o WindowManager.o ProvaParser.o Generatore.o Graph.o Simulazione.o $(LINKFLTK_GL) -lpng12 -lcminpack -lz -lglut
 	$(STRIP) $@
 	$(POSTBUILD) $@
 
